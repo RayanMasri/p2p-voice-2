@@ -53,7 +53,7 @@ const connect = (id) => {
             .getUserMedia({ audio: true, video: false })
             .then((stream) => {
                 const source = context.createMediaStreamSource(stream);
-                const processor = context.createScriptProcessor(4096, 1, 1);
+                const processor = context.createScriptProcessor(8192, 1, 1);
 
                 source.connect(processor);
                 processor.connect(context.destination);
@@ -117,7 +117,7 @@ peer.on('connection', (connection) => {
         .getUserMedia({ audio: true, video: false })
         .then((stream) => {
             const source = context.createMediaStreamSource(stream);
-            const processor = context.createScriptProcessor(4096, 1, 1);
+            const processor = context.createScriptProcessor(8192, 1, 1);
 
             source.connect(processor);
             processor.connect(context.destination);
