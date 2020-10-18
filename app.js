@@ -10,7 +10,7 @@ const server = require('http').createServer(app);
 const io = require('socket.io')(server);
 
 io.on('connection', () => {
-    console.log('a socket.io client connected');
+    // console.log('a socket.io client connected');
 });
 
 server.listen(process.env.PORT || 3000, () => {
@@ -23,8 +23,22 @@ const peer = ExpressPeerServer(server, {
     debug: true,
 });
 
-peer.on('connection', () => {
-    console.log('a peer.js client connected');
+let clients = [];
+
+peer.on('connection', (client) => {
+    if (!clients.includes(client.id)) {
+        clients.push(client.id);
+    }
+
+    io.emit('info', clients);
+});
+
+peer.on('disconnect', (client) => {
+    if (clients.includes(client.id)) {
+        clients.splice(clients.indexOf(client.id), 1);
+    }
+
+    io.emit('info', clients);
 });
 
 app.use('/peerjs', peer);
