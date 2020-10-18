@@ -1,0 +1,13 @@
+{
+    "name": "p2p-voice",
+    "version": "0.0.2",
+    "description": "peer to peer voice application",
+    "dependencies": {
+        "express": "*",
+        "peer": "^0.5.3",
+        "socket.io": "*"
+    },
+    "scripts": {
+        "start": "node app.js"
+    }
+}
