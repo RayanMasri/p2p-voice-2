@@ -1,44 +1,80 @@
 const express = require('express');
+const { connect } = require('http2');
 const app = express();
+
+let info = {
+    rooms: [],
+};
 
 app.use(express.static('public'));
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
 });
-
-const server = require('http').createServer(app);
-const io = require('socket.io')(server);
-
-io.on('connection', () => {
-    // console.log('a socket.io client connected');
+app.get('/info', (req, res) => {
+    res.end(JSON.stringify(info));
 });
 
-server.listen(process.env.PORT || 3000, () => {
-    console.log(`listening on *:${server.address().port}`);
-});
-
-// peer.js config
-const { ExpressPeerServer } = require('peer');
-const peer = ExpressPeerServer(server, {
-    debug: true,
-});
-
-let clients = [];
-
-peer.on('connection', (client) => {
-    if (!clients.includes(client.id)) {
-        clients.push(client.id);
+app.get('/create', (req, res) => {
+    if (!info.rooms.some((room) => room.name == req.query.name)) {
+        info = {
+            rooms: info.rooms.concat([
+                {
+                    name: req.query.name,
+                    clients: [],
+                },
+            ]),
+        };
     }
 
-    io.emit('info', clients);
+    res.end('{}');
+});
+
+app.get('/join', (req, res) => {
+    if (info.rooms.some((room) => room.name == req.query.name)) {
+        info = {
+            rooms: info.rooms.map((room) => {
+                return {
+                    name: room.name,
+                    clients:
+                        room.name == req.query.name
+                            ? !room.clients.some(
+                                  (client) => client.id == req.query.id
+                              )
+                                ? room.clients.concat([
+                                      {
+                                          id: req.query.id,
+                                      },
+                                  ])
+                                : room.clientss
+                            : room.clients,
+                };
+            }),
+        };
+    }
+
+    res.end('{}');
+});
+
+const peer = require('peer').ExpressPeerServer(
+    require('http')
+        .createServer(app)
+        .listen(process.env.PORT || 3000, () => {
+            console.log(`listening on *:${process.env.PORT || 3000}`);
+        })
+);
+
+peer.on('connection', (client) => {
+    // if (!connected_users.includes(client.id)) {
+    //     connected_users.push(client.id);
+    // }
+    console.log(`'${client.id}' connected`);
 });
 
 peer.on('disconnect', (client) => {
-    if (clients.includes(client.id)) {
-        clients.splice(clients.indexOf(client.id), 1);
-    }
-
-    io.emit('info', clients);
+    // if (connected_users.includes(client.id)) {
+    // connected_users = connected_users.filter((user) => user != client.id);
+    // }
+    console.log(`'${client.id}' disconnected`);
 });
 
 app.use('/peerjs', peer);

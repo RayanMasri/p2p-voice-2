@@ -6,11 +6,17 @@
         <title>Document</title>
     </head>
     <body>
-        <div id="clients"></div>
+        <input id="create-room-input" type="text" placeholder="Room Name" />
+        <button id="create-room">Create Room</button>
+
+        <input id="join-room-input" type="text" placeholder="Room Name" />
+        <button id="join-room">Join Room</button>
+
+        <button id="update-room">Update</button>
+        <ul id="rooms"></ul>
 
         <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
         <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.1/socket.io.js"></script>
-        <script src="script.js"></script>
+        <script src="script.js" type="module"></script>
     </body>
 </html>

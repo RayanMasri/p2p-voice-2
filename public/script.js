@@ -1,161 +1,117 @@
-let socket = io(
-    window.location.protocol +
-        '//' +
-        window.location.hostname +
-        ':' +
-        window.location.port
-);
-let peer = new Peer({
+const context = new AudioContext();
+const peer = new Peer({
     path: '/peerjs',
     host: location.hostname,
     port: location.port || (location.protocol === 'https:' ? 443 : 80),
 });
 
-const connect = (id) => {
-    let connection = peer.connect(id);
+const query = (url) => {
+    return fetch(url, {
+        method: 'GET',
+    }).then((result) => result.json());
+};
 
-    connection.on('open', () => {
-        const context = new AudioContext();
-
-        connection.on('data', (data) => {
-            let blob = window.atob(data);
-            let fLen = blob.length / Float32Array.BYTES_PER_ELEMENT;
-            let dView = new DataView(
-                new ArrayBuffer(Float32Array.BYTES_PER_ELEMENT)
-            );
-            let fAry = new Float32Array(fLen);
-            let p = 0;
-
-            for (var j = 0; j < fLen; j++) {
-                p = j * 4;
-                dView.setUint8(0, blob.charCodeAt(p));
-                dView.setUint8(1, blob.charCodeAt(p + 1));
-                dView.setUint8(2, blob.charCodeAt(p + 2));
-                dView.setUint8(3, blob.charCodeAt(p + 3));
-                fAry[j] = dView.getFloat32(0, true);
-            }
-
-            let buffer = new AudioBuffer({
-                numberOfChannels: 1,
-                length: context.sampleRate * 2.0,
-                sampleRate: context.sampleRate,
-            });
-
-            buffer.getChannelData(0).set(fAry);
-
-            let sound = context.createBufferSource();
-            sound.buffer = buffer;
-            sound.connect(context.destination);
-            sound.start(context.currentTime);
-        });
-
-        navigator.mediaDevices
-            .getUserMedia({ audio: true, video: false })
-            .then((stream) => {
-                const source = context.createMediaStreamSource(stream);
-                const processor = context.createScriptProcessor(8192, 1, 1);
-
-                source.connect(processor);
-                processor.connect(context.destination);
-
-                processor.onaudioprocess = (e) => {
-                    let chunk = btoa(
-                        String.fromCharCode.apply(
-                            null,
-                            new Uint8Array(
-                                e.inputBuffer.getChannelData(0).buffer
-                            )
-                        )
-                    );
-
-                    connection.send(chunk);
-                };
-            });
+const stream = (callback) => {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        callback(stream);
     });
 };
 
-peer.on('open', (id) => {
-    console.log(`peer.js is open with id: ${id}`);
-});
+// const processCall = (call) => {
+// call.on('stream', (stream) => {
+//     const processor = context.createScriptProcessor(4096, 1, 1);
 
-peer.on('connection', (connection) => {
-    const context = new AudioContext();
+//     context.createMediaStreamSource(stream).connect(processor);
+//     processor.connect(context.destination);
 
-    connection.on('data', (data) => {
-        let blob = window.atob(data);
-        let fLen = blob.length / Float32Array.BYTES_PER_ELEMENT;
-        let dView = new DataView(
-            new ArrayBuffer(Float32Array.BYTES_PER_ELEMENT)
-        );
-        let fAry = new Float32Array(fLen);
-        let p = 0;
-
-        for (var j = 0; j < fLen; j++) {
-            p = j * 4;
-            dView.setUint8(0, blob.charCodeAt(p));
-            dView.setUint8(1, blob.charCodeAt(p + 1));
-            dView.setUint8(2, blob.charCodeAt(p + 2));
-            dView.setUint8(3, blob.charCodeAt(p + 3));
-            fAry[j] = dView.getFloat32(0, true);
-        }
-
-        let buffer = new AudioBuffer({
-            numberOfChannels: 1,
-            length: context.sampleRate * 2.0,
-            sampleRate: context.sampleRate,
-        });
-
-        buffer.getChannelData(0).set(fAry);
-
-        let sound = context.createBufferSource();
-        sound.buffer = buffer;
-        sound.connect(context.destination);
-        sound.start(context.currentTime);
-    });
-
-    navigator.mediaDevices
-        .getUserMedia({ audio: true, video: false })
-        .then((stream) => {
-            const source = context.createMediaStreamSource(stream);
-            const processor = context.createScriptProcessor(8192, 1, 1);
-
-            source.connect(processor);
-            processor.connect(context.destination);
-
-            processor.onaudioprocess = (e) => {
-                let chunk = btoa(
-                    String.fromCharCode.apply(
-                        null,
-                        new Uint8Array(e.inputBuffer.getChannelData(0).buffer)
-                    )
-                );
-
-                connection.send(chunk);
-            };
-        });
-});
-
-socket.on('info', (clients) => {
-    $('#clients').empty();
-
-    clients.map((client) => {
-        $('#clients').append(
-            $(
-                `<button>${
-                    client == peer.id ? `<strong>${client}</strong>` : client
-                }</button>`
-            ).click(() => {
-                connect(client);
-            })
-        );
-    });
-});
-
-// console.log(`connecting socket.io to ${socket.io.uri}`);
-// console.log(
-//     `connecting peer.js to ${peer._options.host}:${peer._options.port}`
-// );
-
-// socket.on('connect', () => {
-//     console.log(`socket.io is open with id: ${socket.id}`);
+//     processor.onaudioprocess = (event) => {
+//         let sound = context.createBufferSource();
+//         sound.buffer = event.inputBuffer;
+//         sound.connect(context.destination);
+//         sound.start(context.currentTime);
+//     };
 // });
+// };
+
+$('#create-room').click(() => {
+    const name = $('#create-room-input').val();
+    query(`/create?name=${name}`);
+});
+
+$('#join-room').click(() => {
+    const name = $('#join-room-input').val();
+    query(`/join?name=${name}&id=${peer.id}`);
+});
+
+$('#update-room').click(() => {
+    $('#update-room').prop('disabled', true);
+    query('/info').then((info) => {
+        // Show rooms
+        $('#rooms').empty();
+        info.rooms.map((room) => {
+            $('#rooms').append(
+                $(`<li>${room.name} - ${room.clients.length}</li>`).css(
+                    'color',
+                    room.clients.some((client) => client.id == peer.id)
+                        ? 'red'
+                        : 'black'
+                )
+            );
+        });
+
+        const clients = info.rooms
+            .find((room) => room.clients.some((client) => client.id == peer.id))
+            .clients.filter((client) => client.id != peer.id);
+
+        console.log(clients);
+
+        stream((stream) => {
+            clients.map((client) => {
+                console.log(`calling: '${client.id}'`);
+                const call = peer.call(client.id, stream);
+
+                call.on('stream', (stream) => {
+                    console.log(`received audio from: '${client.id}'`);
+                    console.log(stream);
+
+                    // const audio = document.createElement("audio")
+
+                    const audio = new Audio();
+                    audio.srcObject = stream;
+                    audio.play();
+
+                    // const audio = $('<audio controls>');
+
+                    // audio.src = stream;
+                    // console.log(audio[0]);
+                    // audio[0].play();
+                    //
+                    // $('body').append(audio);
+
+                    // audio.play();
+                });
+
+                // processCall(peer.call(client.id, stream));
+            });
+        });
+
+        $('#update-room').prop('disabled', false);
+    });
+});
+
+peer.on('open', (id) => {
+    console.log(`identified as: '${id}'`);
+});
+
+peer.on('call', (call) => {
+    console.log(`received call from: '${call.peer}'`);
+    stream((stream) => {
+        call.answer(stream);
+        console.log(`answered call from: '${call.peer}'`);
+
+        call.on('stream', (stream) => {
+            console.log(`received audio from: '${call.peer}'`);
+            console.log(stream);
+        });
+    });
+});
